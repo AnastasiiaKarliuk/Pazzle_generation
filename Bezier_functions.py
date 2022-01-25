@@ -46,30 +46,70 @@ def evaluate_bezier(points, n):
     return np.array([fun(t) for fun in curves for t in np.linspace(0, 1, n)])
 
 
-def skew_polygon(polygon):
-    new_polygon = []
-    center_polygon = polygon.mean(axis=0)
+def skew_line(p1, p2, center_polygon, t):
+    p1_ = (1 - t) * p1 + t * p2
 
-    save_percent = 0.5
-    t = 1 - save_percent
+    p1_1 = (1 - t) * p1_ + t * center_polygon
+    p2_1 = (1 - t) * p2 + t * center_polygon
 
-    for p1, p2 in zip(polygon[:-1], polygon[1:]):
-        p1_ = (1 - t) * p1 + t * p2
-        p1_1 = (1 - t) * p1_ + t * center_polygon
-        p2_1 = (1 - t) * p2 + t * center_polygon
-
+    chooce_3d = np.random.random() > 0.5
+    if chooce_3d:
         points = np.array([
             p1,
             p1_1,
             p2_1,
-            # center_polygon,
+            p1_,
             p2
         ])
-        path = evaluate_bezier(points, 20)
-        new_polygon.append(path)
-    return np.concatenate(new_polygon)
+    else:
+        points = np.array([
+            p1,
+            p1_1,
+            p2_1,
+            p2
+        ])
+    path = evaluate_bezier(points, 20)
+    return path
 
 
-def skew_graph(polygons):
-    new_polygons = [skew_polygon(polygon) for polygon in polygons]
+def is_edge(p1, p2, x1, x2, y1, y2):
+    p1_edge = p1[0] in [x1, x2] or p1[1] in [y1, y2]
+    p2_edge = p2[0] in [x1, x2] or p2[1] in [y1, y2]
+    return p1_edge and p2_edge
+
+
+def skew_polygon(polygon, *kwargs):
+    written_lines, written_path, x1, x2, y1, y2 = kwargs
+    new_polygon = []
+    center_polygon = polygon.mean(axis=0)
+
+    for p1, p2 in zip(polygon[:-1], polygon[1:]):
+        if len(written_lines) > 0 and 4 in np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1):
+            is_lin = np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1) == 4
+            new_polygon.append(np.array(written_path)[is_lin][0])
+            continue
+        else:
+            if is_edge(p1, p2, x1, x2, y1, y2):
+                path = np.array([p1, p2])
+            else:
+                t = np.random.uniform(0.3, 0.5, 1)[0]
+                path = skew_line(p1, p2, center_polygon, t)
+            new_polygon.append(path)
+
+            written_lines.append([p1, p2])
+            written_lines.append([p2, p1])
+
+            written_path.append(path)
+            written_path.append(path[::-1, :])
+
+    return np.concatenate(new_polygon), written_lines, written_path
+
+
+def skew_graph(polygons, x1, x2, y1, y2):
+    new_polygons, written_lines, written_path = [], [], []
+    for polygon in polygons:
+
+        new_polygon, written_lines, written_path = skew_polygon(polygon, written_lines, written_path, x1, x2, y1, y2)
+        new_polygons.append(new_polygon)
+
     return np.array(new_polygons)
