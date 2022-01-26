@@ -52,23 +52,14 @@ def skew_line(p1, p2, center_polygon, t):
     p1_1 = (1 - t) * p1_ + t * center_polygon
     p2_1 = (1 - t) * p2 + t * center_polygon
 
-    chooce_3d = np.random.random() > 0.5
-    if chooce_3d:
-        points = np.array([
-            p1,
-            p1_1,
-            p2_1,
-            p1_,
-            p2
-        ])
-    else:
-        points = np.array([
-            p1,
-            p1_1,
-            p2_1,
-            p2
-        ])
-    path = evaluate_bezier(points, 20)
+    points = np.array([
+        p1,
+        p1_1,
+        p2_1,
+        p1_,
+        p2
+    ])
+    path = evaluate_bezier(points, 10)
     return path
 
 
@@ -79,14 +70,26 @@ def is_edge(p1, p2, x1, x2, y1, y2):
 
 
 def skew_polygon(polygon, *kwargs):
+    polygon = np.round(polygon, 4)
     written_lines, written_path, x1, x2, y1, y2 = kwargs
     new_polygon = []
     center_polygon = polygon.mean(axis=0)
 
+    # print('written_path')
+
     for p1, p2 in zip(polygon[:-1], polygon[1:]):
         if len(written_lines) > 0 and 4 in np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1):
+            #
+            # if 22.74 in np.array([p1, p2]).round(2):
+            #     print('\nrepeated')
+            #     print(p1, p2)
+
             is_lin = np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1) == 4
             new_polygon.append(np.array(written_path)[is_lin][0])
+
+            # if 22.74 in np.array([p1, p2]).round(2):
+            #     print(np.array(written_path)[is_lin][0])
+
             continue
         else:
             if is_edge(p1, p2, x1, x2, y1, y2):
@@ -94,6 +97,7 @@ def skew_polygon(polygon, *kwargs):
             else:
                 t = np.random.uniform(0.3, 0.5, 1)[0]
                 path = skew_line(p1, p2, center_polygon, t)
+
             new_polygon.append(path)
 
             written_lines.append([p1, p2])
@@ -101,6 +105,12 @@ def skew_polygon(polygon, *kwargs):
 
             written_path.append(path)
             written_path.append(path[::-1, :])
+
+            # if 22.74 in np.array([p1, p2]).round(2):
+            #     print('\n this is the first time ')
+            #     print([p1, p2])
+            #     is_lin = np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1) == 4
+            #     print(np.array(written_path)[is_lin][0])
 
     return np.concatenate(new_polygon), written_lines, written_path
 
