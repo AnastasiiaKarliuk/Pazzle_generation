@@ -46,19 +46,62 @@ def evaluate_bezier(points, n):
     return np.array([fun(t) for fun in curves for t in np.linspace(0, 1, n)])
 
 
-def skew_line(p1, p2, center_polygon, t):
-    p1_ = (1 - t) * p1 + t * p2
+def get_points(a, b, a1, b1, center_polygon, t):
+    a_c = t * a + (1 - t) * center_polygon
+    a1_c = t * a1 + (1 - t) * center_polygon
+    b1_c = t * b1 + (1-t) * center_polygon
+    b_c = t * b + (1 - t) * center_polygon
+    return a_c, a1_c, b1_c, b_c
 
-    p1_1 = (1 - t) * p1_ + t * center_polygon
-    p2_1 = (1 - t) * p2 + t * center_polygon
 
-    points = np.array([
-        p1,
-        p1_1,
-        p2_1,
-        p1_,
-        p2
-    ])
+def randomize_points_2c(*args):
+    a1, b1, a_c1, a1_c1, b1_c1, b_c1, a_c2, a1_c2, b1_c2, b_c2 = args
+    return [a1, a_c1, b1_c1, b1_c2, b_c2]
+
+
+def randomize_points_1c(*args):
+    a1, b1, a_c1, a1_c1, b1_c1, b_c1 = args
+    return [a1, a_c1, b_c1, b1]
+
+
+def vertexes_2d(a, b, a1, b1, centers_polygon):
+    range_t = 0.7, 0.7
+
+    t = np.random.uniform(range_t[0], range_t[1], 1)[0]
+    a_c1, a1_c1, b1_c1, b_c1 = get_points(a, b, a1, b1, centers_polygon[0], t)
+
+    t = np.random.uniform(range_t[0], range_t[1], 1)[0]
+    a_c2, a1_c2, b1_c2, b_c2 = get_points(a, b, a1, b1, centers_polygon[1], t)
+
+    vertexes = randomize_points_2c(a1, b1, a_c1, a1_c1, b1_c1, b_c1, a_c2, a1_c2, b1_c2, b_c2)
+    vertexes = [a] + vertexes + [b]
+    return vertexes
+
+
+def vertexes_1d(a, b, a1, b1, centers_polygon):
+    range_t = 0.7, 0.7
+
+    t = np.random.uniform(range_t[0], range_t[1], 1)[0]
+    a_c1, a1_c1, b1_c1, b_c1 = get_points(a, b, a1, b1, centers_polygon[0], t)
+
+    vertexes = randomize_points_1c(a1, b1, a_c1, a1_c1, b1_c1, b_c1)
+    vertexes = [a] + vertexes + [b]
+    return vertexes
+
+
+def skew_line(a, b, centers_polygon):
+    range_t = 0.8, 0.8
+    t = np.random.uniform(range_t[0], range_t[1], 1)[0]
+
+    a1 = t * a + (1-t) * b
+    b1 = t * b + (1-t) * a
+
+    if len(centers_polygon) == 2:
+        points = vertexes_2d(a, b, a1, b1, centers_polygon)
+    else:
+        points = vertexes_1d(a, b, a1, b1, centers_polygon)
+
+    points = np.array(points)
     path = evaluate_bezier(points, 10)
     return path
 
@@ -69,34 +112,27 @@ def is_edge(p1, p2, x1, x2, y1, y2):
     return p1_edge and p2_edge
 
 
-def skew_polygon(polygon, *kwargs):
-    polygon = np.round(polygon, 4)
-    written_lines, written_path, x1, x2, y1, y2 = kwargs
-    new_polygon = []
-    center_polygon = polygon.mean(axis=0)
+def skew_polygon(polygon, written_lines, written_path,
+                 x1, x2, y1, y2,
+                 list_cenetrs, written_centers):
 
-    # print('written_path')
+    polygon = np.round(polygon, 4)
+    new_polygon = []
 
     for p1, p2 in zip(polygon[:-1], polygon[1:]):
         if len(written_lines) > 0 and 4 in np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1):
-            #
-            # if 22.74 in np.array([p1, p2]).round(2):
-            #     print('\nrepeated')
-            #     print(p1, p2)
 
             is_lin = np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1) == 4
             new_polygon.append(np.array(written_path)[is_lin][0])
-
-            # if 22.74 in np.array([p1, p2]).round(2):
-            #     print(np.array(written_path)[is_lin][0])
 
             continue
         else:
             if is_edge(p1, p2, x1, x2, y1, y2):
                 path = np.array([p1, p2])
             else:
-                t = np.random.uniform(0.3, 0.5, 1)[0]
-                path = skew_line(p1, p2, center_polygon, t)
+                is_lin = np.equal(written_centers, [p2, p1]).sum(axis=1).sum(axis=1) == 4
+                index_el = list(is_lin).index(True)
+                path = skew_line(p1, p2, list_cenetrs[index_el])
 
             new_polygon.append(path)
 
@@ -106,20 +142,47 @@ def skew_polygon(polygon, *kwargs):
             written_path.append(path)
             written_path.append(path[::-1, :])
 
-            # if 22.74 in np.array([p1, p2]).round(2):
-            #     print('\n this is the first time ')
-            #     print([p1, p2])
-            #     is_lin = np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1) == 4
-            #     print(np.array(written_path)[is_lin][0])
-
     return np.concatenate(new_polygon), written_lines, written_path
 
 
-def skew_graph(polygons, x1, x2, y1, y2):
+def skew_graph(polygons, x1, x2, y1, y2, list_cenetrs, written_centers):
     new_polygons, written_lines, written_path = [], [], []
     for polygon in polygons:
-
-        new_polygon, written_lines, written_path = skew_polygon(polygon, written_lines, written_path, x1, x2, y1, y2)
+        new_polygon, written_lines, written_path = skew_polygon(polygon, written_lines, written_path,
+                                                                x1, x2, y1, y2, list_cenetrs, written_centers)
         new_polygons.append(new_polygon)
 
     return np.array(new_polygons)
+
+
+# ------- collect centers of each line ----
+
+
+def culculate_cenetrs(polygons):
+    written_lines, list_cenetrs = [], []
+    for polygon in polygons:
+        written_lines, list_cenetrs = add_centers(polygon, written_lines, list_cenetrs)
+    return written_lines, list_cenetrs
+
+
+def add_centers(polygon, written_lines, list_centers):
+    polygon = np.round(polygon, 4)
+    center_polygon = polygon.mean(axis=0)
+
+    for p1, p2 in zip(polygon[:-1], polygon[1:]):
+        if len(written_lines) > 0 and 4 in np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1):
+            is_lin = np.equal(written_lines, [p1, p2]).sum(axis=1).sum(axis=1) == 4
+            index_el = list(is_lin).index(True)
+            list_centers[index_el].append(center_polygon)
+
+            is_lin = np.equal(written_lines, [p2, p1]).sum(axis=1).sum(axis=1) == 4
+            index_el = list(is_lin).index(True)
+            list_centers[index_el].append(center_polygon)
+        else:
+            written_lines.append([p1, p2])
+            written_lines.append([p2, p1])
+
+            list_centers.append([center_polygon])
+            list_centers.append([center_polygon])
+
+    return written_lines, list_centers
