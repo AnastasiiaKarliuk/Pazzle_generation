@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 
 
@@ -55,17 +57,65 @@ def get_points(a, b, a1, b1, center_polygon, t):
 
 
 def randomize_points_2c(*args):
-    a1, b1, a_c1, a1_c1, b1_c1, b_c1, a_c2, a1_c2, b1_c2, b_c2 = args
-    return [a1, a_c1, b1_c1, b1_c2, b_c2]
+    a, b, a1, b1, a_c1, a1_c1, b1_c1, b_c1, a_c2, a1_c2, b1_c2, b_c2 = args
+    # rand = random.randint(0, 4)
+    # if rand == 0:
+    #     return [a1, a_c1, b1_c1, b_c2]
+    # if rand == 1:
+    #     return [a_c1, b1, a1_c2, b_c2]
+    # if rand == 2:
+    #     return [a1, b1_c1, b_c1, b1_c2, b_c2]
+    # if rand == 3:
+    #     return [b1, a_c2, b1_c2]
+    # if rand == 4:
+    #     return [a_c1, a1_c1, a_c2, b1_c2, b_c1]
+    # if rand == 5:
+    #     return [a1, ]
+    graph = {
+        'a': ['a1', 'a_c1', 'a1_c1', 'a1_c2', 'a_c2'],
+        'a1': ['a_c1', 'a1_c1', 'b1_c1'],
+        'b1': ['b'],
+        'a_c1': ['a1_c1', 'b1', 'b1_c1', 'b_c1'],
+        'a_c2': ['a1_c2', 'b1', 'b1_c2', 'b_c2'],
+        'a1_c1': ['b1_c1', 'b_c1', 'b_c2', 'b1'],
+        'a1_c2': ['b1_c2', 'b_c2', 'b_c1', 'b1'],
+        'b1_c1': ['b_c1', 'b', 'b1'],
+        'b1_c2': ['b_c2', 'b', 'b1'],
+        'b_c1': ['b'],
+        'b_c2': ['b']
+    }
+
+    def find_all_paths(graph, start, end, path=[]):
+        path = path + [start]
+        if start == end:
+            return [path]
+        paths = []
+        for node in graph[start]:
+            if node not in path:
+                newpaths = find_all_paths(graph, node, end, path)
+                for newpath in newpaths:
+                    paths.append(newpath)
+        return paths
+
+    all_pathes = find_all_paths(graph, 'a', 'b')
+    curr_path = np.random.choice(all_pathes, size=1)[0]
+
+    new_path = []
+    for el in curr_path:
+        new_path.append(eval(el))
+    # new_path = [eval(el) for el in curr_path]
+
+    return new_path
 
 
 def randomize_points_1c(*args):
     a1, b1, a_c1, a1_c1, b1_c1, b_c1 = args
-    return [a1, a_c1, b_c1, b1]
+    return [a1, a1_c1, b1]
 
 
 def vertexes_2d(a, b, a1, b1, centers_polygon):
-    range_t = 0.7, 0.7
+    el = 0.6
+    range_t = el, el
 
     t = np.random.uniform(range_t[0], range_t[1], 1)[0]
     a_c1, a1_c1, b1_c1, b_c1 = get_points(a, b, a1, b1, centers_polygon[0], t)
@@ -73,13 +123,14 @@ def vertexes_2d(a, b, a1, b1, centers_polygon):
     t = np.random.uniform(range_t[0], range_t[1], 1)[0]
     a_c2, a1_c2, b1_c2, b_c2 = get_points(a, b, a1, b1, centers_polygon[1], t)
 
-    vertexes = randomize_points_2c(a1, b1, a_c1, a1_c1, b1_c1, b_c1, a_c2, a1_c2, b1_c2, b_c2)
-    vertexes = [a] + vertexes + [b]
+    vertexes = randomize_points_2c(a, b, a1, b1, a_c1, a1_c1, b1_c1, b_c1, a_c2, a1_c2, b1_c2, b_c2)
+    # vertexes = [a] + vertexes + [b]
     return vertexes
 
 
 def vertexes_1d(a, b, a1, b1, centers_polygon):
-    range_t = 0.7, 0.7
+    el = 0.5
+    range_t = el, el
 
     t = np.random.uniform(range_t[0], range_t[1], 1)[0]
     a_c1, a1_c1, b1_c1, b_c1 = get_points(a, b, a1, b1, centers_polygon[0], t)
@@ -90,19 +141,25 @@ def vertexes_1d(a, b, a1, b1, centers_polygon):
 
 
 def skew_line(a, b, centers_polygon):
-    range_t = 0.8, 0.8
+    el = 0.7
+    range_t = el, el
     t = np.random.uniform(range_t[0], range_t[1], 1)[0]
 
     a1 = t * a + (1-t) * b
     b1 = t * b + (1-t) * a
 
-    if len(centers_polygon) == 2:
-        points = vertexes_2d(a, b, a1, b1, centers_polygon)
-    else:
-        points = vertexes_1d(a, b, a1, b1, centers_polygon)
+    t = 0.87
+    new_a = t * a + (1-t) * b
+    new_b = t * b + (1-t) * a
 
-    points = np.array(points)
+    if len(centers_polygon) == 2:
+        points = vertexes_2d(new_a, new_b, a1, b1, centers_polygon)
+    else:
+        points = vertexes_1d(new_a, new_b, a1, b1, centers_polygon)
+
+    points = np.array([a] + points + [b])
     path = evaluate_bezier(points, 10)
+    # path = points
     return path
 
 
@@ -159,13 +216,18 @@ def skew_graph(polygons, x1, x2, y1, y2, list_cenetrs, written_centers):
 
 
 def culculate_cenetrs(polygons):
-    written_lines, list_cenetrs = [], []
+    written_lines, list_cenetrs, distances = [], [], []
     for polygon in polygons:
-        written_lines, list_cenetrs = add_centers(polygon, written_lines, list_cenetrs)
-    return written_lines, list_cenetrs
+        written_lines, list_cenetrs, distances = add_centers(polygon, written_lines, list_cenetrs, distances)
+    return written_lines, list_cenetrs, distances
 
 
-def add_centers(polygon, written_lines, list_centers):
+def distance_points(p1, p2):
+    p1, p2 = np.array(p1), np.array(p2)
+    return np.sqrt(sum((p1-p2)**2))
+
+
+def add_centers(polygon, written_lines, list_centers, distances):
     polygon = np.round(polygon, 4)
     center_polygon = polygon.mean(axis=0)
 
@@ -185,4 +247,6 @@ def add_centers(polygon, written_lines, list_centers):
             list_centers.append([center_polygon])
             list_centers.append([center_polygon])
 
-    return written_lines, list_centers
+            dist = distance_points(p1, p2)
+            distances.append(dist)
+    return written_lines, list_centers, distances
